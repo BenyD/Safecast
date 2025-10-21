@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+# Supabase CLI Rules
+
+## Migration Management
+
+- Use `supabase migration new <name>` to create new database migrations
+- Use `supabase db reset` to reset and apply all migrations to local database
+- Always create descriptive migration names that explain the change
+
+## Environment Management
+
+- Use `supabase status -o env` to get environment variables and connection details
+- Use these environment variables for local development and testing
+
+## Function Development
+
+- Use `supabase function new <name>` to create new Edge Functions
+- Follow Supabase function naming conventions and structure
+
+## Database Schema & Types
+
+- Use `supabase gen types typescript --local > src/types/database.ts` to generate TypeScript types from local database schema
+- Keep all database types centralized in `src/types/database.ts`
+- Import and use these types throughout the application for type safety
+- Update types after schema changes by regenerating them
+
+## MCP Integration
+
+- Use Supabase read-only MCP for scanning and querying database schema
+- Leverage MCP for database introspection and analysis tasks
+
+## Best Practices
+
+- Always run migrations locally before deploying
+- Use descriptive names for migrations and functions
+- Keep database types up to date with schema changes
+- Use centralized type definitions for consistency across the application
+- Test functions locally before deployment
