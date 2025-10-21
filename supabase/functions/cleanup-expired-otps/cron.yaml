@@ -1,0 +1,3 @@
+# Cron job configuration for OTP cleanup
+# Runs every 2 minutes to clean up expired OTP codes
+schedule: "*/2 * * * *"

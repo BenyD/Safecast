@@ -1,0 +1,4 @@
+# Cron configuration for incident expiration
+# This will run every hour to check for expired incidents
+cron: "0 * * * *" # Every hour at minute 0
+
