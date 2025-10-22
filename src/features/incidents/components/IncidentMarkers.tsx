@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-// Removed unused icon imports
+import { createRoot } from "react-dom/client";
+import { IncidentPopup } from "./IncidentPopup";
+import { IncidentDetailSheet } from "./IncidentDetailSheet";
 
 // Type for active incidents (matches get_active_incidents function return)
 type ActiveIncident = {
@@ -37,6 +39,53 @@ const SEVERITY_COLORS = {
 
 export function IncidentMarkers({ map, incidents }: IncidentMarkersProps) {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const [selectedIncident, setSelectedIncident] =
+    useState<ActiveIncident | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // Add CSS for custom popup styling
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .custom-popup .mapboxgl-popup-content {
+        padding: 0 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid hsl(var(--border)) !important;
+        background: hsl(var(--background)) !important;
+      }
+      .custom-popup .mapboxgl-popup-tip {
+        border-top-color: hsl(var(--border)) !important;
+      }
+      .custom-popup .mapboxgl-popup-close-button {
+        color: hsl(var(--muted-foreground)) !important;
+        font-size: 16px !important;
+        padding: 4px !important;
+        right: 8px !important;
+        top: 8px !important;
+        width: 28px !important;
+        height: 28px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 4px !important;
+        transition: all 0.2s ease !important;
+        z-index: 10 !important;
+      }
+      .custom-popup .mapboxgl-popup-close-button:hover {
+        color: hsl(var(--foreground)) !important;
+        background: hsl(var(--muted)) !important;
+        border-radius: 4px !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -90,7 +139,7 @@ export function IncidentMarkers({ map, incidents }: IncidentMarkersProps) {
         SEVERITY_COLORS[incident.severity as keyof typeof SEVERITY_COLORS] ||
         SEVERITY_COLORS.medium;
 
-      // Create marker element
+      // Create marker element with your preferred style
       const el = document.createElement("div");
       el.className = "incident-marker";
       el.style.width = "32px";
@@ -103,7 +152,6 @@ export function IncidentMarkers({ map, incidents }: IncidentMarkersProps) {
       el.style.alignItems = "center";
       el.style.justifyContent = "center";
       el.style.cursor = "pointer";
-      el.style.position = "relative";
 
       // Add icon to marker
       const iconSvg = document.createElementNS(
@@ -132,54 +180,43 @@ export function IncidentMarkers({ map, incidents }: IncidentMarkersProps) {
 
       el.appendChild(iconSvg);
 
-      // Create marker
-      const marker = new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map);
+      // Create minimal popup container
+      const popupContainer = document.createElement("div");
+      const popupRoot = createRoot(popupContainer);
 
-      // Create popup
-      const popup = new mapboxgl.Popup({
-        offset: 25,
-        closeButton: true,
-        closeOnClick: false,
-      }).setLngLat([lng, lat]).setHTML(`
-          <div class="p-3 max-w-xs">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
-              <h3 class="font-semibold text-sm">${incident.title}</h3>
-            </div>
-            <p class="text-xs text-gray-600 mb-2">${incident.type
-              .replace("_", " ")
-              .toUpperCase()}</p>
-            ${
-              incident.description
-                ? `<p class="text-xs text-gray-700 mb-2">${incident.description}</p>`
-                : ""
-            }
-            ${
-              incident.address
-                ? `<p class="text-xs text-gray-500 mb-2">📍 ${incident.address}</p>`
-                : ""
-            }
-            <div class="flex items-center justify-between text-xs text-gray-500">
-              <span>Severity: ${incident.severity}</span>
-              <span>${
-                incident.created_at
-                  ? new Date(incident.created_at).toLocaleDateString()
-                  : "Unknown"
-              }</span>
-            </div>
-            ${
-              incident.images && incident.images.length > 0
-                ? `
-              <div class="mt-2">
-                <p class="text-xs text-gray-500">📷 ${incident.images.length} photo(s)</p>
-              </div>
-            `
-                : ""
-            }
-          </div>
-        `);
+      // Add click handler to marker
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Close any existing popups
+        markersRef.current.forEach((marker) => {
+          const popup = marker.getPopup();
+          if (popup && popup.isOpen()) {
+            popup.remove();
+          }
+        });
+        setSelectedIncident(incident);
+        setIsSheetOpen(true);
+      });
 
-      marker.setPopup(popup);
+      // Create marker using proper Mapbox pattern
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: "center",
+      })
+        .setLngLat([lng, lat])
+        .setPopup(
+          new mapboxgl.Popup({
+            offset: 25,
+            closeButton: true,
+            closeOnClick: false,
+            className: "custom-popup",
+          }).setDOMContent(popupContainer)
+        )
+        .addTo(map);
+
+      // Render the minimal React popup component
+      popupRoot.render(<IncidentPopup incident={incident} color={color} />);
+
       markersRef.current.push(marker);
     });
 
@@ -190,7 +227,20 @@ export function IncidentMarkers({ map, incidents }: IncidentMarkersProps) {
     };
   }, [map, incidents]);
 
-  return null; // This component doesn't render anything visible
+  return (
+    <>
+      {selectedIncident && (
+        <IncidentDetailSheet
+          incident={selectedIncident}
+          isOpen={isSheetOpen}
+          onClose={() => {
+            setIsSheetOpen(false);
+            setSelectedIncident(null);
+          }}
+        />
+      )}
+    </>
+  );
 }
 
 // Helper function to get SVG path for each icon type

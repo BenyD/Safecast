@@ -39,3 +39,4 @@ CREATE TRIGGER update_otp_codes_updated_at
 GRANT ALL ON otp_codes TO authenticated;
 GRANT ALL ON otp_codes TO service_role;
 
+
