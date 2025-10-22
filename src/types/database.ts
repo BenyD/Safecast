@@ -106,6 +106,36 @@ export type Database = {
           },
         ]
       }
+      otp_codes: {
+        Row: {
+          attempts: number | null
+          code: string
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          code: string
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          code?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -137,6 +167,7 @@ export type Database = {
           id: string
           is_verified: boolean | null
           last_active: string | null
+          name: string | null
         }
         Insert: {
           created_at?: string | null
@@ -144,6 +175,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           last_active?: string | null
+          name?: string | null
         }
         Update: {
           created_at?: string | null
@@ -151,6 +183,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           last_active?: string | null
+          name?: string | null
         }
         Relationships: []
       }
@@ -392,6 +425,38 @@ export type Database = {
       bytea: {
         Args: { "": unknown } | { "": unknown }
         Returns: string
+      }
+      cleanup_expired_otp_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_incident: {
+        Args: {
+          p_address?: string
+          p_description?: string
+          p_images?: string[]
+          p_latitude: number
+          p_longitude: number
+          p_severity?: string
+          p_title: string
+          p_type: string
+          p_user_id?: string
+        }
+        Returns: {
+          address: string
+          created_at: string
+          description: string
+          expires_at: string
+          id: string
+          images: string[]
+          is_verified: boolean
+          location: unknown
+          severity: string
+          status: string
+          title: string
+          type: string
+          user_id: string
+        }[]
       }
       disablelongtransactions: {
         Args: Record<PropertyKey, never>
@@ -667,7 +732,10 @@ export type Database = {
           status: string
           title: string
           type: string
+          updated_at: string
           user_id: string
+          verified_at: string
+          verified_by: string
         }[]
       }
       get_proj4_from_srid: {

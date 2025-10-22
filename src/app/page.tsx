@@ -57,11 +57,28 @@ export default function Home() {
 
   const {
     incidents,
-    loading: incidentsLoading,
     error: incidentsError,
     createIncident,
     retryFetch,
   } = useIncidents();
+
+  // Cleanup marker mode elements when component unmounts or marker mode changes
+  useEffect(() => {
+    return () => {
+      if (mapInstance && isMarkerMode) {
+        // Remove the radius circle
+        if (mapInstance.getLayer("radius-circle-stroke")) {
+          mapInstance.removeLayer("radius-circle-stroke");
+        }
+        if (mapInstance.getLayer("radius-circle")) {
+          mapInstance.removeLayer("radius-circle");
+        }
+        if (mapInstance.getSource("radius-circle")) {
+          mapInstance.removeSource("radius-circle");
+        }
+      }
+    };
+  }, [mapInstance, isMarkerMode]);
 
   // Check for existing session and show welcome dialog on first visit
   useEffect(() => {
@@ -109,12 +126,14 @@ export default function Home() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
+          const { latitude, longitude, accuracy } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
           setMapCenter([longitude, latitude]);
           console.log("Location automatically detected:", {
             lat: latitude,
             lng: longitude,
+            accuracy: accuracy,
+            timestamp: new Date(position.timestamp).toISOString(),
           });
         },
         (error) => {
@@ -123,8 +142,8 @@ export default function Home() {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000, // 5 minutes
+          timeout: 15000, // Increased timeout for better accuracy
+          maximumAge: 60000, // Reduced to 1 minute for fresher data
         }
       );
     }
@@ -148,6 +167,14 @@ export default function Home() {
     setIsMarkerMode(true);
 
     if (mapInstance && userLocation) {
+      // Hide the Mapbox geolocate control during marker mode
+      const geolocateControl = mapInstance
+        .getContainer()
+        .querySelector(".mapboxgl-ctrl-geolocate");
+      if (geolocateControl) {
+        (geolocateControl as HTMLElement).style.display = "none";
+      }
+
       // Change cursor to indicate marker placement mode
       mapInstance.getCanvas().style.cursor = "crosshair";
 
@@ -215,36 +242,6 @@ export default function Home() {
         });
       }
 
-      // Add a prominent user location marker for marker mode
-      if (!mapInstance.getSource("user-location-marker")) {
-        mapInstance.addSource("user-location-marker", {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Point",
-              coordinates: [userLocation.lng, userLocation.lat],
-            },
-          },
-        });
-      }
-
-      if (!mapInstance.getLayer("user-location-marker")) {
-        mapInstance.addLayer({
-          id: "user-location-marker",
-          type: "circle",
-          source: "user-location-marker",
-          paint: {
-            "circle-radius": 8,
-            "circle-color": "#22c55e",
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 3,
-            "circle-opacity": 1,
-          },
-        });
-      }
-
       // Add click listener for marker placement
       const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
         const clickedLocation = {
@@ -294,14 +291,6 @@ export default function Home() {
           if (mapInstance.getSource("radius-circle")) {
             mapInstance.removeSource("radius-circle");
           }
-
-          // Remove the user location marker
-          if (mapInstance.getLayer("user-location-marker")) {
-            mapInstance.removeLayer("user-location-marker");
-          }
-          if (mapInstance.getSource("user-location-marker")) {
-            mapInstance.removeSource("user-location-marker");
-          }
         } else {
           toast.error(
             "Location too far. Please place the marker within 1km of your current location"
@@ -318,6 +307,14 @@ export default function Home() {
     setIsMarkerMode(false);
 
     if (mapInstance) {
+      // Show the Mapbox geolocate control again
+      const geolocateControl = mapInstance
+        .getContainer()
+        .querySelector(".mapboxgl-ctrl-geolocate");
+      if (geolocateControl) {
+        (geolocateControl as HTMLElement).style.display = "";
+      }
+
       // Reset cursor
       mapInstance.getCanvas().style.cursor = "";
 
@@ -330,14 +327,6 @@ export default function Home() {
       }
       if (mapInstance.getSource("radius-circle")) {
         mapInstance.removeSource("radius-circle");
-      }
-
-      // Remove the user location marker
-      if (mapInstance.getLayer("user-location-marker")) {
-        mapInstance.removeLayer("user-location-marker");
-      }
-      if (mapInstance.getSource("user-location-marker")) {
-        mapInstance.removeSource("user-location-marker");
       }
     }
 
@@ -392,6 +381,29 @@ export default function Home() {
       setPendingMarkerLocation(null);
       setPendingLocationAddress("");
       setIsMarkerMode(false);
+
+      // Clean up marker mode elements
+      if (mapInstance) {
+        // Remove the radius circle
+        if (mapInstance.getLayer("radius-circle-stroke")) {
+          mapInstance.removeLayer("radius-circle-stroke");
+        }
+        if (mapInstance.getLayer("radius-circle")) {
+          mapInstance.removeLayer("radius-circle");
+        }
+        if (mapInstance.getSource("radius-circle")) {
+          mapInstance.removeSource("radius-circle");
+        }
+
+        // Show the Mapbox geolocate control again
+        const geolocateControl = mapInstance
+          .getContainer()
+          .querySelector(".mapboxgl-ctrl-geolocate");
+        if (geolocateControl) {
+          (geolocateControl as HTMLElement).style.display = "";
+        }
+      }
+
       // Reopen the incident form sheet
       setShowIncidentForm(true);
 
@@ -399,7 +411,7 @@ export default function Home() {
         "Location confirmed! You can now continue with your incident report"
       );
     }
-  }, [pendingMarkerLocation, pendingLocationAddress]);
+  }, [pendingMarkerLocation, pendingLocationAddress, mapInstance]);
 
   const handleLocationReject = useCallback(() => {
     setShowLocationConfirmDialog(false);
@@ -410,15 +422,10 @@ export default function Home() {
 
     // Clean up any existing markers before re-enabling marker placement mode
     if (mapInstance) {
-      if (mapInstance.getLayer("user-location-marker")) {
-        mapInstance.removeLayer("user-location-marker");
-      }
-      if (mapInstance.getSource("user-location-marker")) {
-        mapInstance.removeSource("user-location-marker");
-      }
+      // No custom markers to clean up
     }
 
-    // Re-enable marker placement mode
+    // Re-enable marker placement mode (this will hide the geolocate control again)
     handleMapMarkerRequest();
   }, [handleMapMarkerRequest, mapInstance]);
 
@@ -609,12 +616,8 @@ export default function Home() {
               </p>
               <div className="flex items-center gap-3 text-xs text-gray-500">
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span>You</span>
-                </div>
-                <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>1km</span>
+                  <span>1km radius</span>
                 </div>
               </div>
             </div>
@@ -695,6 +698,31 @@ export default function Home() {
           setShowIncidentForm(false);
           setCustomMarkerLocation(null);
           setCustomMarkerAddress("");
+
+          // Clean up any remaining marker mode elements when form is closed
+          if (mapInstance && isMarkerMode) {
+            // Remove the radius circle
+            if (mapInstance.getLayer("radius-circle-stroke")) {
+              mapInstance.removeLayer("radius-circle-stroke");
+            }
+            if (mapInstance.getLayer("radius-circle")) {
+              mapInstance.removeLayer("radius-circle");
+            }
+            if (mapInstance.getSource("radius-circle")) {
+              mapInstance.removeSource("radius-circle");
+            }
+
+            // Show the Mapbox geolocate control again
+            const geolocateControl = mapInstance
+              .getContainer()
+              .querySelector(".mapboxgl-ctrl-geolocate");
+            if (geolocateControl) {
+              (geolocateControl as HTMLElement).style.display = "";
+            }
+
+            // Reset marker mode
+            setIsMarkerMode(false);
+          }
         }}
         onSubmit={handleIncidentSubmit}
         userLocation={userLocation}

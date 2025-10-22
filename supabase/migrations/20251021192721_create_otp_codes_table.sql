@@ -40,3 +40,4 @@ GRANT ALL ON otp_codes TO authenticated;
 GRANT ALL ON otp_codes TO service_role;
 
 
+

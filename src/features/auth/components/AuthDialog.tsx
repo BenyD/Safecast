@@ -137,11 +137,9 @@ export function AuthDialog({
       }
 
       console.log("OTP verified successfully:", result);
-
-      // Show success toast
-      toast.success(
-        `Email verified! ${isExistingUser ? "Welcome back!" : "Account created successfully"}`
-      );
+      console.log("isExistingUser:", isExistingUser);
+      console.log("result.user:", result.user);
+      console.log("result.user?.name:", result.user?.name);
 
       // Store the user session data for client-side use
       if (result.user) {
@@ -156,20 +154,18 @@ export function AuthDialog({
       }
 
       // Check if this is a new user who needs to provide their name
-      if (!isExistingUser) {
+      // The API response is the source of truth - if user has a name, they're existing
+      const userName = result.user?.name;
+      const hasName = userName && userName.trim() !== "";
+
+      if (!hasName) {
+        // No name found in database, collect name
+        toast.success("Email verified! Please complete your profile.");
         setStep("name");
       } else {
-        // For existing users, check if we have their name from the API response
-        const userName = result.user?.name;
-
-        if (userName) {
-          // User has a name in the database, sign them in
-          onAuthSuccess(email, userName);
-          onClose();
-        } else {
-          // No name found in database, treat as new user and collect name
-          setStep("name");
-        }
+        // User has a name in the database, sign them in
+        onAuthSuccess(email, userName);
+        onClose();
       }
     } catch (err) {
       console.error("Error verifying OTP:", err);

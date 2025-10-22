@@ -46,10 +46,17 @@ export function WelcomeDialog({
 
     setIsGettingLocation(true);
     setLocationError(null);
+    setPermissionDenied(false);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log("Location obtained:", {
+          lat: latitude,
+          lng: longitude,
+          accuracy: accuracy,
+          timestamp: new Date(position.timestamp).toISOString(),
+        });
         onLocationFound(latitude, longitude);
         setIsGettingLocation(false);
         onClose();
@@ -59,24 +66,28 @@ export function WelcomeDialog({
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage =
-              "Location access is required for many app features. Please allow location access to continue.";
+              "Location access is required for many app features. Please allow location access in your browser settings and try again.";
             setPermissionDenied(true);
             break;
           case error.POSITION_UNAVAILABLE:
             errorMessage =
-              "Location information is unavailable. Please try again.";
+              "Location information is unavailable. Please check your device's location settings and try again.";
             break;
           case error.TIMEOUT:
-            errorMessage = "Location request timed out. Please try again.";
+            errorMessage =
+              "Location request timed out. Please try again or check your internet connection.";
             break;
+          default:
+            errorMessage =
+              "An unexpected error occurred while getting your location. Please try again.";
         }
         setLocationError(errorMessage);
         setIsGettingLocation(false);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        timeout: 15000, // Increased timeout for better accuracy
+        maximumAge: 60000, // 1 minute for fresher data
       }
     );
   };
@@ -255,6 +266,20 @@ export function WelcomeDialog({
             <li>• Provide location-based safety alerts</li>
             <li>• Help emergency services respond faster</li>
           </ul>
+        </div>
+
+        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-yellow-800">
+              <p className="font-medium mb-1">For best accuracy:</p>
+              <ul className="text-xs space-y-1">
+                <li>• Ensure GPS is enabled on your device</li>
+                <li>• Try to be outdoors or near a window</li>
+                <li>• Wait a few seconds for GPS to lock on</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <div className="p-3 bg-gray-50 rounded-lg">

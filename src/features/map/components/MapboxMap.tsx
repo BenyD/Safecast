@@ -74,6 +74,8 @@ export function MapboxMap({
       const geolocate = new mapboxgl.GeolocateControl({
         positionOptions: {
           enableHighAccuracy: true,
+          timeout: 15000, // Increased timeout for better accuracy
+          maximumAge: 60000, // Reduced to 1 minute for fresher data
         },
         trackUserLocation: true,
         showUserHeading: true,
@@ -89,9 +91,16 @@ export function MapboxMap({
       // Listen for geolocate events to notify parent component and center map
       geolocate.on(
         "geolocate",
-        (e: { coords: { latitude: number; longitude: number } }) => {
+        (e: {
+          coords: { latitude: number; longitude: number; accuracy?: number };
+        }) => {
           if (onLocationFoundRef.current && e.coords) {
             onLocationFoundRef.current(e.coords.latitude, e.coords.longitude);
+          }
+
+          // Log location accuracy for debugging (with proper null checking)
+          if (e.coords && typeof e.coords.accuracy === "number") {
+            console.log("Location accuracy:", e.coords.accuracy, "meters");
           }
 
           // Center map on user location with appropriate zoom
