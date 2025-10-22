@@ -47,3 +47,4 @@ BEGIN
     ORDER BY i.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
+
